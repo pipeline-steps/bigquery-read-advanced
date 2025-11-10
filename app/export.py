@@ -1,9 +1,9 @@
 from math import ceil
-from .bq_utils import (
+from bq_utils import (
     store_shard, store_batch, get_column_values, count_num_rows,
     get_table_num_rows, store_all, export_shard, export_batch, export_all
 )
-from .constants import BATCH_PLACEHOLDER
+from constants import BATCH_PLACEHOLDER
 
 
 def determine_batches(client, config):

@@ -1,11 +1,16 @@
+import sys
+import os
 import timeit
 from google.cloud import bigquery
 from steputil import StepArgs, StepArgsBuilder
 
-from .bq_utils import create_tmp_table, delete_table
-from .export import determine_batches, export_to_df, export_to_gs
-from .config import Config
-from .constants import TERMINATION_LOG, BATCHES_PREFIX
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(__file__))
+
+from bq_utils import create_tmp_table, delete_table
+from export import determine_batches, export_to_df, export_to_gs
+from config import Config
+from constants import TERMINATION_LOG, BATCHES_PREFIX
 
 
 def main(step: StepArgs):
