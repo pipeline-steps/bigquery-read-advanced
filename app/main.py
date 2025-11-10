@@ -2,10 +2,10 @@ import timeit
 from google.cloud import bigquery
 from steputil import StepArgs, StepArgsBuilder
 
-from app.bq_utils import create_tmp_table, delete_table
-from app.export import determine_batches, export_to_df, export_to_gs
-from app.config import Config
-from app.constants import TERMINATION_LOG, BATCHES_PREFIX
+from .bq_utils import create_tmp_table, delete_table
+from .export import determine_batches, export_to_df, export_to_gs
+from .config import Config
+from .constants import TERMINATION_LOG, BATCHES_PREFIX
 
 
 def main(step: StepArgs):
