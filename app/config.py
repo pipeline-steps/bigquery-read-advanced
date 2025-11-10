@@ -1,104 +1,50 @@
-import os
-from json import load
-from google.cloud import bigquery
+from steputil import StepArgs
 
 
-def replace(string: str):
-    if string is not None:
-        for key, value in os.environ.items():
-            string = string.replace(f"${{{key}}}", value)
-    return string
-
-
-def expect(json, key):
-    return replace(json[key])
-
-
-def optional(json, key):
-    return replace(json.get(key))
-
-
-# Config "struct"
 class Config:
-    def __init__(self, client, do_batching, batch_column, do_sharding, temp_table, hash_columns, limit, gs_uri_prefix, with_statement, table_or_view, filename_pattern, do_count, max_batch_size, output_path, convert_to_str):
-        self.client = client
-        self.do_batching = do_batching
-        self.batch_column = batch_column
-        self.do_sharding = do_sharding
-        self.temp_table = temp_table
-        self.hash_columns = hash_columns
-        self.limit = limit
-        self.gs_uri_prefix = gs_uri_prefix
-        self.with_statement = with_statement
-        self.table_or_view = table_or_view
-        self.filename_pattern = filename_pattern
-        self.do_count = do_count
-        self.max_batch_size = max_batch_size
-        self.output_path = output_path
-        self.convert_to_str = convert_to_str
+    """Configuration class that wraps StepArgs and provides convenient properties."""
 
+    def __init__(self, step: StepArgs):
+        self.step = step
+        self.billing_project = step.config.billingProject
+        self.filename_pattern = step.config.filenamePattern
 
-def create_config(config_path: str, output_path: str):
-    # read config json into a dict
-    with open(config_path) as f:
-        config = load(f)
+        # Input configuration
+        self.input_table = step.config.inputTable
+        self.input_view = step.config.inputView
+        self.input_query = step.config.inputQuery
 
-    # client for bq operation
-    billing_project = expect(config, "billingProject")
-    bqclient = bigquery.Client(project=billing_project)
+        # Optional parameters
+        self.temp_table = step.config.tempTable
+        self.limit = int(step.config.limit) if step.config.limit else None
+        self.gs_uri_prefix = step.config.storageUriPrefix
+        self.batch_column = step.config.batchColumn
+        self.max_batch_size = int(step.config.maxBatchSize) if step.config.maxBatchSize else None
+        self.convert_to_str = step.config.convertColumnsToString
 
-    # input
-    input_table = optional(config, "inputTable")
-    input_view = optional(config, "inputView")
-    input_query = optional(config, "inputQuery")
+        # Parse hash columns (comma-separated string to list)
+        if step.config.hashColumns:
+            self.hash_columns = [col.strip() for col in step.config.hashColumns.split(',')]
+        else:
+            self.hash_columns = None
 
-    # count number of input parameters set
-    num_input = 0
-    if input_view is not None:
-        num_input += 1
-    if input_table is not None:
-        num_input += 1
-    if input_query is not None:
-        num_input += 1
-    if num_input != 1:
-        raise ValueError("Exactly one and only one of the parameters 'inputView', 'inputTable' and 'inputQuery' must be specified!")
+        # Determine input table/view and with_statement
+        self.do_count = True
+        self.with_statement = ""
+        self.in_table_or_view = None
 
-    temp_table = optional(config, "tempTable")
-    filename_pattern = expect(config, "filenamePattern")
-    limit = optional(config, "limit")
-    gs_uri_prefix = optional(config, "storageUriPrefix")
-    max_batch_size = optional(config, "maxBatchSize")
-    hash_columns = optional(config, "hashColumns")
-    if max_batch_size is not None and hash_columns is None:
-        raise ValueError("in sharding mode ('maxBatchSize' is set), the parameter 'hashColumns' must be set")
-    if max_batch_size is None and hash_columns is not None:
-        raise ValueError("the parameter 'hashColumns' can only be used in sharding mode (i.e. when 'maxBatchSize' is set)")
-    batch_column = optional(config, "batchColumn")
-    if max_batch_size is not None and batch_column is not None:
-        raise ValueError("Parameters 'max_batch_size' and 'batch_column' cannot be specified together!")
-    convert_to_str = optional(config, "convertColumnsToString")
-
-    # set variable for input table/view
-    do_count = True
-    with_statement = ""
-    table_or_view = None
-    if input_view is not None:
-        table_or_view = input_view
-    if input_table is not None:
-        table_or_view = input_table
-        do_count = False # can read number of rows directly without counting
-    if input_query is not None:
-        with_statement = f"""
+        if self.input_view is not None:
+            self.in_table_or_view = self.input_view
+        elif self.input_table is not None:
+            self.in_table_or_view = self.input_table
+            self.do_count = False  # Can read number of rows directly from table metadata
+        elif self.input_query is not None:
+            self.with_statement = f"""
 WITH data AS (
-{input_query}
+{self.input_query}
 )"""
-        table_or_view = "data"
+            self.in_table_or_view = "data"
 
-    # determine other flags
-    do_sharding = max_batch_size is not None
-    do_batching = batch_column is not None or do_sharding
-
-    # return the config object
-    return Config(bqclient, do_batching, batch_column, do_sharding, temp_table, hash_columns, limit,
-                  gs_uri_prefix, with_statement, table_or_view, filename_pattern, do_count, max_batch_size,
-                  output_path, convert_to_str)
+        # Determine batching flags
+        self.do_sharding = self.max_batch_size is not None
+        self.do_batching = self.batch_column is not None or self.do_sharding
