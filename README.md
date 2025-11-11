@@ -50,7 +50,7 @@ docker run pipelining/bigquery-read-advanced:latest
 | batchColumn             | Column name to use for batching (splits data by distinct values)                     |
 | maxBatchSize            | Maximum batch size for sharding mode (requires hashColumns)                          |
 | hashColumns             | Columns to hash for sharding (comma-separated, required when maxBatchSize is set)    |
-| convertColumnsToString  | Array of column names to convert to string (e.g., ["date_column", "timestamp_col"]) |
+| columnsAsString         | Array of column names to convert to string (e.g., ["date_column", "timestamp_col"]) |
 
 **Notes:**
   * billingProject: The user/service account needs to have bigquery.jobs.create permission on this project

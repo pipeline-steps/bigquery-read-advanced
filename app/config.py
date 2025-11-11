@@ -22,7 +22,7 @@ class Config:
         self.max_batch_size = int(step.config.maxBatchSize) if step.config.maxBatchSize else None
 
         # Parse columns to convert to string (array of column names)
-        self.convert_to_str_columns = step.config.convertColumnsToString if step.config.convertColumnsToString else None
+        self.convert_to_str_columns = step.config.columnsAsString if step.config.columnsAsString else None
 
         # Parse hash columns (comma-separated string to list)
         if step.config.hashColumns:

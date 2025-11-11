@@ -104,7 +104,7 @@ if __name__ == "__main__":
          .config("batchColumn", optional=True)
          .config("maxBatchSize", optional=True)
          .config("hashColumns", optional=True)
-         .config("convertColumnsToString", optional=True)
+         .config("columnsAsString", optional=True)
          .validate(validate_config)
          .build()
          )
