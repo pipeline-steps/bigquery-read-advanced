@@ -36,12 +36,12 @@ def export_to_df(client, config, batches, output):
                 df = store_shard(
                     client, config.with_statement, config.limit, config.in_table_or_view,
                     len(batches), batch, config.temp_table is not None,
-                    config.hash_columns, output, filename, config.convert_to_str
+                    config.hash_columns, output, filename, config.convert_to_str_columns
                 )
             else:
                 df = store_batch(
                     client, config.with_statement, config.limit, config.in_table_or_view,
-                    batch, config.batch_column, output, filename, config.convert_to_str
+                    batch, config.batch_column, output, filename, config.convert_to_str_columns
                 )
             sum_len += len(df)
             max_len = max(max_len, len(df))
@@ -49,7 +49,7 @@ def export_to_df(client, config, batches, output):
     else:
         store_all(
             client, config.with_statement, config.limit, config.in_table_or_view,
-            output, config.filename_pattern, config.convert_to_str
+            output, config.filename_pattern, config.convert_to_str_columns
         )
 
 

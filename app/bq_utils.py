@@ -63,15 +63,33 @@ def delete_table(client, table):
     print(f"Deleted table {table}")
 
 
-def convert_columns_to_str(df):
-    """Convert all dataframe columns to string type."""
-    for column in df.columns:
-        df[column] = df[column].astype(str)
+def convert_columns_to_str(df, columns=None):
+    """Convert specified dataframe columns to string type.
+
+    Args:
+        df: DataFrame to modify
+        columns: List of column names to convert, or None to convert all columns
+    """
+    if columns is None:
+        # Convert all columns
+        for column in df.columns:
+            df[column] = df[column].astype(str)
+    else:
+        # Convert only specified columns
+        for column in columns:
+            if column in df.columns:
+                df[column] = df[column].astype(str)
+            else:
+                print(f"Warning: Column '{column}' not found in dataframe, skipping")
     return df
 
 
-def store(client, with_statement, limit, query, output, filename, convert_to_str):
-    """Execute query and store results using steputil output."""
+def store(client, with_statement, limit, query, output, filename, columns_to_convert):
+    """Execute query and store results using steputil output.
+
+    Args:
+        columns_to_convert: List of column names to convert to string, or None
+    """
     if len(with_statement) > 0:
         query = with_statement + "\n" + query
     if limit is not None:
@@ -81,9 +99,9 @@ def store(client, with_statement, limit, query, output, filename, convert_to_str
     start_time = timeit.default_timer()
     df = client.query(query).to_dataframe()
 
-    # Optionally convert all columns to string, can prevent overflow for datetime objects
-    if convert_to_str:
-        df = convert_columns_to_str(df)
+    # Optionally convert specified columns to string (prevents JSON serialization issues)
+    if columns_to_convert:
+        df = convert_columns_to_str(df, columns_to_convert)
 
     # Use steputil output to write JSON records
     records = df.to_dict('records')
@@ -110,7 +128,7 @@ def hash_ref(has_temp_table, hash_columns):
         return hash_expression(hash_columns)
 
 
-def store_shard(client, with_statement, limit, table, num_shards, shard, has_temp_table, hash_columns, output, filename, convert_to_str):
+def store_shard(client, with_statement, limit, table, num_shards, shard, has_temp_table, hash_columns, output, filename, columns_to_convert):
     """Store a specific shard of data."""
     query = f"""
 SELECT {select(has_temp_table)}
@@ -118,10 +136,10 @@ FROM `{table}`
 WHERE MOD({hash_ref(has_temp_table, hash_columns)}, {num_shards}) = {shard}
 """
     print(f"Exporting shard {shard} (of {num_shards}) from {table} to {filename}")
-    return store(client, with_statement, limit, query, output, filename, convert_to_str)
+    return store(client, with_statement, limit, query, output, filename, columns_to_convert)
 
 
-def store_batch(client, with_statement, limit, table, batch, batch_column, output, filename, convert_to_str):
+def store_batch(client, with_statement, limit, table, batch, batch_column, output, filename, columns_to_convert):
     """Store a specific batch based on batch column value."""
     query = f"""
 SELECT * EXCEPT({batch_column})
@@ -129,17 +147,17 @@ FROM `{table}`
 WHERE {batch_column} = "{batch}"
 """
     print(f"Exporting batch {batch_column}={batch} from {table} to {filename}")
-    return store(client, with_statement, limit, query, output, filename, convert_to_str)
+    return store(client, with_statement, limit, query, output, filename, columns_to_convert)
 
 
-def store_all(client, with_statement, limit, table, output, filename, convert_to_str):
+def store_all(client, with_statement, limit, table, output, filename, columns_to_convert):
     """Store all data from table."""
     query = f"""
 SELECT *
 FROM `{table}`
 """
     print(f"Exporting all data from {table} to {filename}")
-    return store(client, with_statement, limit, query, output, filename, convert_to_str)
+    return store(client, with_statement, limit, query, output, filename, columns_to_convert)
 
 
 def export(client, with_statement, limit, query):
